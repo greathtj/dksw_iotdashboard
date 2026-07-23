@@ -1,0 +1,498 @@
+{% extends "great_iot/base_standalone.html" %}
+{% load static %}
+
+{% block title %}AI 분석 리포트 - {{ sensor.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.markdown-body h1 { font-size: 1.6rem; margin-top: 1.5rem; margin-bottom: 0.8rem; border-bottom: 1px solid #30363d; padding-bottom: 0.3rem; color: #f0f6fc; }
+.markdown-body h2 { font-size: 1.3rem; margin-top: 1.3rem; margin-bottom: 0.6rem; border-bottom: 1px solid #21262d; padding-bottom: 0.2rem; color: #f0f6fc; }
+.markdown-body h3 { font-size: 1.1rem; margin-top: 1rem; margin-bottom: 0.5rem; color: #f0f6fc; }
+.markdown-body h4 { font-size: 1rem; margin-top: 0.8rem; margin-bottom: 0.4rem; color: #f0f6fc; }
+.markdown-body p { margin-bottom: 0.8rem; }
+.markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin-bottom: 0.8rem; }
+.markdown-body li { margin-bottom: 0.3rem; }
+.markdown-body code { background-color: rgba(110,118,129,0.2); padding: 0.2em 0.4em; border-radius: 6px; font-size: 0.9em; color: #ff7b72; }
+.markdown-body pre { background-color: #010409; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; overflow-x: auto; margin-bottom: 1rem; }
+.markdown-body pre code { background: none; padding: 0; color: #c9d1d9; }
+.markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+.markdown-body th, .markdown-body td { border: 1px solid #30363d; padding: 0.5rem 0.75rem; text-align: left; }
+.markdown-body th { background-color: #21262d; font-weight: 600; }
+.markdown-body tr:nth-child(even) { background-color: #161b22; }
+.markdown-body blockquote { border-left: 4px solid #30363d; padding-left: 1rem; color: #8b949e; margin-left: 0; }
+.markdown-body hr { border: none; border-top: 1px solid #30363d; margin: 1.5rem 0; }
+.markdown-body strong { color: #f0f6fc; }
+.markdown-body a { color: #58a6ff; }
+.markdown-body a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'great_iot:iot_dashboard' %}" class="text-decoration-none text-info">IoT 대시보드</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'great_iot:sensor_detail' sensor.id %}" class="text-decoration-none text-info">{{ sensor.name }}</a></li>
+                <li class="breadcrumb-item active text-muted" aria-current="page">AI 분석 리포트</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header py-3">
+                <h5 class="card-title mb-0"><i class="bi bi-plug me-2 text-info"></i>LLM 서버 연결</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">서버 주소</label>
+                    <div class="input-group">
+                        <input type="url" id="serverUrlInput" class="form-control font-monospace" placeholder="http://192.168.0.100:11434" value="{{ server_url }}">
+                        <button id="connectBtn" class="btn btn-info">
+                            <i class="bi bi-arrow-repeat me-1"></i>연결
+                        </button>
+                    </div>
+                    <div class="form-text">Ollama 또는 OpenAI 호환 서버 주소를 입력하세요.</div>
+                </div>
+
+                <div id="connectionStatus" class="d-none"></div>
+
+                <div id="serverInfo" class="d-none">
+                    <hr class="my-3">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span id="serverTypeBadge" class="badge"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">모델 선택</label>
+                        <select id="modelSelect" class="form-select">
+                            <option value="">-- 모델을 선택하세요 --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">분석 기간</label>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for key, label in time_ranges.items %}
+                            <button type="button" class="btn btn-sm {% if selected_range == key %}btn-info{% else %}btn-outline-secondary{% endif %} range-btn" data-range="{{ key }}">
+                                {{ label }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">분석 주의사항</label>
+                        <textarea id="notesInput" class="form-control" rows="12" placeholder="AI 분석 시 고려해야 할 사항을 입력하세요&#10;예: 특정 시간대의 데이터를 중점적으로 분석해주세요">{{ config_notes }}</textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button id="runAnalysisBtn" class="btn btn-primary" disabled>
+                            <i class="bi bi-robot me-2"></i>AI 분석 실행
+                        </button>
+                    </div>
+
+                    <form id="analysisForm" method="post" class="d-none">
+                        {% csrf_token %}
+                        <input type="hidden" name="url" id="formUrl">
+                        <input type="hidden" name="model" id="formModel">
+                        <input type="hidden" name="range" id="formRange" value="{{ selected_range }}">
+                        <input type="hidden" name="notes" id="formNotes">
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header py-3">
+                <h5 class="card-title mb-0"><i class="bi bi-bookmark me-2 text-info"></i>저장된 서버</h5>
+            </div>
+            <div class="card-body">
+                {% if servers %}
+                <div class="list-group list-group-flush small">
+                    {% for s in servers %}
+                    <div class="list-group-item px-0 py-2 bg-transparent border-secondary border-opacity-25">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1 me-2" style="cursor:pointer;" onclick="loadServer('{{ s.url|escapejs }}', '{{ s.default_model|escapejs }}')">
+                                <div class="fw-bold">{{ s.name }}</div>
+                                <div class="text-muted smaller text-truncate">{{ s.url }}</div>
+                                <div class="text-info smaller">{{ s.default_model }}</div>
+                            </div>
+                            <form method="post" action="{% url 'great_iot:delete_llm_server' s.id %}" onsubmit="return confirm('삭제하시겠습니까?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger py-0 px-1">&times;</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">저장된 서버가 없습니다.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if stats %}
+        <div class="card shadow-sm mt-4">
+            <div class="card-header py-3">
+                <h5 class="card-title mb-0"><i class="bi bi-bar-chart me-2 text-info"></i>데이터 통계</h5>
+                <small class="text-muted">{{ selected_range_label }}</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-dark table-striped mb-0 small">
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th class="text-end">평균</th>
+                                <th class="text-end">최소</th>
+                                <th class="text-end">최대</th>
+                                <th class="text-end">건수</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field, s in stats.items %}
+                            <tr>
+                                <td>{{ field }}</td>
+                                <td class="text-end">{{ s.avg|floatformat:2 }}</td>
+                                <td class="text-end">{{ s.min|floatformat:2 }}</td>
+                                <td class="text-end">{{ s.max|floatformat:2 }}</td>
+                                <td class="text-end">{{ s.count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-robot me-2 text-info"></i>AI 분석 리포트
+                </h5>
+                <span id="activeModelBadge" class="badge bg-info text-dark {% if not analysis_result %}d-none{% endif %}">{% if selected_model %}{{ selected_model }}{% endif %}</span>
+            </div>
+            <div class="card-body">
+                <div id="welcomeScreen" class="{% if analysis_result %}d-none{% endif %}">
+                    <div class="text-center py-5">
+                        <div class="display-1 text-muted opacity-10 mb-4">
+                            <i class="bi bi-chat-dots"></i>
+                        </div>
+                        <h5 class="text-muted">LLM 서버에 연결해주세요</h5>
+                        <p class="text-muted small">왼쪽 패널에서 서버 주소를 입력하고 연결 버튼을 누르면<br>설치된 모델 목록을 불러와 분석을 진행할 수 있습니다.</p>
+                    </div>
+                </div>
+
+                <div id="loadingScreen" class="d-none">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-info mb-3" role="status"></div>
+                        <h5 class="text-muted">AI가 데이터를 분석 중입니다...</h5>
+                        <p class="text-muted small">선택한 LLM 서버로 데이터를 전송하고 있습니다.<br>최대 2분까지 소요될 수 있습니다.</p>
+                        <div class="progress mt-3" style="height: 4px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="resultScreen" class="{% if analysis_result %}{% else %}d-none{% endif %}">
+                    <div id="analysisContent" class="analysis-content p-3 rounded markdown-body" style="background-color: #0d1117; border: 1px solid #30363d; line-height: 1.7;"></div>
+                    <div id="rawAnalysisContent" style="display:none;">{% if analysis_result %}{{ analysis_result }}{% endif %}</div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="copyResult()">
+                            <i class="bi bi-clipboard me-1"></i>복사
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="window.print()">
+                            <i class="bi bi-printer me-1"></i>인쇄
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="rerunAnalysis()">
+                            <i class="bi bi-arrow-repeat me-1"></i>재분석
+                        </button>
+                    </div>
+                </div>
+
+                <div id="errorScreen" class="d-none">
+                    <div class="text-center py-5">
+                        <div class="display-1 text-danger opacity-25 mb-4">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <h5 class="text-danger">분석 중 오류 발생</h5>
+                        <p id="errorMessage" class="text-muted small"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2 text-info"></i>분석 이력</h5>
+                <span class="badge bg-secondary">{{ reports|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if reports %}
+                <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                    {% for r in reports %}
+                    <button type="button" class="list-group-item list-group-item-action px-3 py-2 bg-transparent border-secondary border-opacity-25 report-item" data-id="{{ r.id }}" style="cursor:pointer; text-align:left;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="small fw-bold">{{ r.created_at|date:"Y-m-d H:i" }}</div>
+                                <div class="smaller text-muted">{{ r.model_name }} / {{ r.time_range }}</div>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </div>
+                        <div class="smaller text-muted text-truncate" style="max-width: 100%;">{% if r.notes %}{{ r.notes }}{% else %}주의사항 없음{% endif %}</div>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted small mb-0">아직 저장된 분석 결과가 없습니다.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if raw_data %}
+        <div class="card shadow-sm mt-4">
+            <div class="card-header py-3" data-bs-toggle="collapse" data-bs-target="#rawDataCollapse" style="cursor:pointer;">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-table me-2 text-info"></i>원시 데이터 미리보기
+                    <i class="bi bi-chevron-down float-end"></i>
+                </h5>
+            </div>
+            <div class="collapse" id="rawDataCollapse">
+                <div class="card-body p-0">
+                    <div class="p-3" style="background-color: #0d1117; max-height: 400px; overflow-y: auto;">
+                        <pre class="mb-0 small" style="white-space: pre-wrap;">{{ raw_data_json }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    function renderMarkdown(text) {
+        if (!text) return '';
+        return marked.parse(text, { breaks: true, gfm: true });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const rawEl = document.getElementById('rawAnalysisContent');
+        if (rawEl && rawEl.textContent.trim()) {
+            document.getElementById('analysisContent').innerHTML = renderMarkdown(rawEl.textContent);
+        }
+    });
+
+    let connectedServer = null;
+    let selectedRange = '{{ selected_range|default:"1h" }}';
+
+    document.querySelectorAll('.range-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.range-btn').forEach(b => b.className = b.className.replace('btn-info', 'btn-outline-secondary'));
+            this.classList.replace('btn-outline-secondary', 'btn-info');
+            selectedRange = this.dataset.range;
+        });
+    });
+
+    document.getElementById('connectBtn').addEventListener('click', connectToServer);
+
+    async function connectToServer() {
+        const url = document.getElementById('serverUrlInput').value.trim();
+        if (!url) { alert('서버 주소를 입력하세요.'); return; }
+
+        const btn = document.getElementById('connectBtn');
+        const status = document.getElementById('connectionStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>연결 중...';
+        status.className = 'd-none';
+
+        try {
+            const resp = await fetch("{% url 'great_iot:check_llm_server' %}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: new URLSearchParams({url: url})
+            });
+            const data = await resp.json();
+
+            if (!data.success) {
+                showConnectionError(data.error || '연결 실패');
+                return;
+            }
+
+            connectedServer = {
+                url: url,
+                chatUrl: data.chat_url,
+                serverType: data.server_type,
+                serverTypeLabel: data.server_type_label,
+                models: data.models
+            };
+
+            const badge = document.getElementById('serverTypeBadge');
+            badge.className = 'badge fs-6 px-3 py-2';
+            if (data.server_type === 'ollama') {
+                badge.classList.add('bg-warning', 'text-dark');
+                badge.innerHTML = '<i class="bi bi-robot me-1"></i> Ollama';
+            } else {
+                badge.classList.add('bg-info', 'text-dark');
+                badge.innerHTML = '<i class="bi bi-cloud me-1"></i> ' + data.server_type_label;
+            }
+
+            const select = document.getElementById('modelSelect');
+            select.innerHTML = '<option value="">-- 모델을 선택하세요 --</option>';
+            data.models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                select.appendChild(opt);
+            });
+
+            document.getElementById('connectionStatus').className = 'd-none';
+            document.getElementById('serverInfo').classList.remove('d-none');
+            document.getElementById('runAnalysisBtn').disabled = true;
+
+            select.onchange = function() {
+                document.getElementById('runAnalysisBtn').disabled = !this.value;
+            };
+
+        } catch (err) {
+            showConnectionError('연결 중 오류: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>연결';
+        }
+    }
+
+    function showConnectionError(msg) {
+        const status = document.getElementById('connectionStatus');
+        status.className = 'alert alert-danger py-2 small mb-0 mt-2';
+        status.textContent = msg;
+        document.getElementById('serverInfo').classList.add('d-none');
+    }
+
+    document.getElementById('runAnalysisBtn').addEventListener('click', runAnalysis);
+
+    async function runAnalysis() {
+        const model = document.getElementById('modelSelect').value;
+        if (!connectedServer || !model) return;
+
+        const form = document.getElementById('analysisForm');
+        document.getElementById('formUrl').value = connectedServer.url;
+        document.getElementById('formModel').value = model;
+        document.getElementById('formRange').value = selectedRange;
+        document.getElementById('formNotes').value = document.getElementById('notesInput').value;
+
+        document.getElementById('welcomeScreen').classList.add('d-none');
+        document.getElementById('resultScreen').classList.add('d-none');
+        document.getElementById('errorScreen').classList.add('d-none');
+        document.getElementById('loadingScreen').classList.remove('d-none');
+        document.getElementById('activeModelBadge').classList.remove('d-none');
+        document.getElementById('activeModelBadge').textContent = model;
+
+        try {
+            const resp = await fetch(window.location.href, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: new URLSearchParams(new FormData(form))
+            });
+
+            if (!resp.ok) {
+                const text = await resp.text();
+                showError('서버 오류 (' + resp.status + '): ' + text.substring(0, 200));
+                return;
+            }
+
+            const html = await resp.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const rawDiv = doc.getElementById('rawAnalysisContent');
+
+            if (rawDiv && rawDiv.textContent.trim()) {
+                const rawText = rawDiv.textContent;
+                document.getElementById('analysisContent').innerHTML = renderMarkdown(rawText);
+                document.getElementById('rawAnalysisContent').textContent = rawText;
+                document.getElementById('loadingScreen').classList.add('d-none');
+                document.getElementById('resultScreen').classList.remove('d-none');
+            } else {
+                const alerts = doc.querySelectorAll('.alert');
+                let errMsg = '분석 결과를 찾을 수 없습니다.';
+                alerts.forEach(a => { if (a.classList.contains('alert-danger')) errMsg = a.textContent.trim(); });
+                showError(errMsg);
+            }
+        } catch (err) {
+            showError('요청 중 오류: ' + err.message);
+        }
+    }
+
+    function showError(msg) {
+        document.getElementById('loadingScreen').classList.add('d-none');
+        document.getElementById('errorScreen').classList.remove('d-none');
+        document.getElementById('errorMessage').textContent = msg;
+    }
+
+    function copyResult() {
+        const text = document.getElementById('rawAnalysisContent').textContent;
+        navigator.clipboard.writeText(text);
+        alert('분석 리포트가 클립보드에 복사되었습니다.');
+    }
+
+    function rerunAnalysis() {
+        document.getElementById('errorScreen').classList.add('d-none');
+        document.getElementById('resultScreen').classList.add('d-none');
+        document.getElementById('welcomeScreen').classList.remove('d-none');
+    }
+
+    document.querySelectorAll('.report-item').forEach(el => {
+        el.addEventListener('click', function() {
+            const id = this.dataset.id;
+            loadReport(id);
+        });
+    });
+
+    async function loadReport(id) {
+        document.getElementById('welcomeScreen').classList.add('d-none');
+        document.getElementById('resultScreen').classList.add('d-none');
+        document.getElementById('errorScreen').classList.add('d-none');
+        document.getElementById('loadingScreen').classList.remove('d-none');
+        document.getElementById('loadingScreen').querySelector('h5').textContent = '리포트를 불러오는 중...';
+
+        try {
+            const resp = await fetch("{% url 'great_iot:load_report' 0 %}".replace('/0/', '/' + id + '/'));
+            const data = await resp.json();
+            if (data.success) {
+                document.getElementById('analysisContent').innerHTML = renderMarkdown(data.result);
+                document.getElementById('rawAnalysisContent').textContent = data.result;
+                document.getElementById('activeModelBadge').classList.remove('d-none');
+                document.getElementById('activeModelBadge').textContent = data.model_name;
+                document.getElementById('loadingScreen').classList.add('d-none');
+                document.getElementById('resultScreen').classList.remove('d-none');
+                document.getElementById('resultScreen').querySelector('.d-flex.gap-2').style.display = 'flex';
+            } else {
+                showError('리포트를 불러올 수 없습니다.');
+            }
+        } catch (err) {
+            showError('리포트 로딩 중 오류: ' + err.message);
+        }
+    }
+
+    function loadServer(url, model) {
+        document.getElementById('serverUrlInput').value = url;
+        connectToServer().then(() => {
+            const select = document.getElementById('modelSelect');
+            for (let opt of select.options) {
+                if (opt.value === model) { opt.selected = true; break; }
+            }
+            document.getElementById('runAnalysisBtn').disabled = false;
+        });
+    }
+</script>
+{% endblock %}

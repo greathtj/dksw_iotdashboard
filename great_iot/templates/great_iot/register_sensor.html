@@ -1,0 +1,47 @@
+{% extends "great_iot/base_standalone.html" %}
+{% load static %}
+
+{% block title %}센서 등록 - IoT Engineering Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm border-0 border-top border-primary border-3">
+            <div class="card-header p-4">
+                <h2 class="h4 mb-0 text-info"><i class="bi bi-plus-circle me-2"></i>새로운 센서 등록</h2>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted small mb-4">센서종류를 선택하면 나머지 설정(데이터 식별자, 보드 종류, 데이터 필드)이 자동으로 지정됩니다.</p>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                    <div class="mb-4">
+                        <label for="{{ field.id_for_label }}" class="form-label small fw-bold">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <div class="form-text smaller">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                        <div class="text-danger smaller mt-1">
+                            {{ field.errors|first }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <div class="d-grid gap-2 mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold">
+                            센서 등록 완료
+                        </button>
+                        <a href="{% url 'great_iot:iot_dashboard' %}" class="btn btn-link text-muted text-decoration-none small">
+                            취소하고 돌아가기
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

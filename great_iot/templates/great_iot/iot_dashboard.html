@@ -1,0 +1,249 @@
+{% extends "great_iot/base_standalone.html" %}
+{% load static %}
+
+{% block title %}IoT 대시보드 - IoT Engineering Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media (max-width: 768px) and (orientation: portrait) {
+        .sensor-card {
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            background: var(--bs-body-bg);
+            border: 1px solid var(--bs-border-color);
+        }
+
+        .sensor-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+
+        .sensor-card-title {
+            font-weight: 600;
+            line-height: 1.4;
+            flex-grow: 1;
+        }
+
+        .sensor-card-title a {
+            color: var(--bs-info);
+            text-decoration: none;
+        }
+
+        .sensor-card-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .sensor-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 8px;
+            font-size: 0.75rem;
+        }
+
+        .sensor-card-meta {
+            color: var(--bs-secondary-color);
+        }
+
+        .sensor-card-badge {
+            margin-bottom: 4px;
+        }
+
+        .mobile-table-view { display: none !important; }
+
+        .mobile-card-view { display: block !important; }
+
+        .action-cards-row .col-md-6,
+        .action-cards-row .col-lg-4 {
+            width: 100%;
+        }
+    }
+
+    @media (min-width: 769px) or (orientation: landscape) {
+        .mobile-card-view { display: none !important; }
+
+        .mobile-table-view { display: block !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold text-info mb-0 h5">IoT 관리 허브</h2>
+        <p class="text-muted small mb-0">센서를 관리하고 실시간 데이터를 모니터링하세요.</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-5 action-cards-row">
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="display-6 text-info mb-3">
+                    <i class="bi bi-plus-circle-dotted"></i>
+                </div>
+                <h4 class="card-title fw-bold small">센서 등록</h4>
+                <p class="card-text text-muted small mb-4">새로운 센서 장치를 IoT 네트워크에 추가합니다.</p>
+                <a href="{% url 'great_iot:register_sensor' %}" class="btn btn-outline-primary w-100">
+                    지금 등록하기
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm border-info border-opacity-25">
+            <div class="card-header py-2">
+                <h6 class="card-title mb-0 small"><i class="bi bi-broadcast me-2 text-info"></i>네트워크 상태</h6>
+            </div>
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted">활성 센서</span>
+                    <span class="badge badge-success rounded-pill">{{ sensors.count }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted">데이터 수집 (오늘)</span>
+                    <span class="badge badge-info rounded-pill">연결됨</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">시스템 상태</span>
+                    <span class="text-success small fw-bold">정상</span>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent py-2">
+                <small class="text-muted smaller">마지막 업데이트: 방금 전</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="mobile-card-view">
+            {% if sensors %}
+                {% for sensor in sensors %}
+                <div class="sensor-card card shadow-sm">
+                    <div class="sensor-card-header">
+                        <div class="sensor-card-title">
+                            <a href="{% url 'great_iot:sensor_detail' sensor.id %}">{{ sensor.name }}</a>
+                        </div>
+                        <div class="sensor-card-actions">
+                            <a href="{% url 'great_iot:sensor_detail' sensor.id %}" class="btn btn-sm btn-outline-info" title="보기">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <form action="{% url 'great_iot:delete_sensor' sensor.id %}" method="post" class="d-inline" onsubmit="return confirm('이 센서를 삭제하시겠습니까? 관련 데이터도 모두 삭제됩니다.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="삭제">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="sensor-card-badge">
+                        <span class="badge badge-info small">{{ sensor.get_board_type_display }}</span>
+                        {% if sensor.description %}
+                        <small class="text-muted d-block mt-1">{{ sensor.description|truncatechars:60 }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="sensor-card-footer">
+                        <span class="sensor-card-meta">
+                            <code>{{ sensor.measurement_name }}</code>
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">{{ sensor.created_at|date:"Y-m-d H:i" }}</small>
+                            <span class="badge badge-success rounded-pill px-2 small">Active</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card shadow-sm text-center py-5">
+                    <div class="text-muted mb-3">등록된 센서가 없습니다.</div>
+                    <a href="{% url 'great_iot:register_sensor' %}" class="btn btn-primary w-100">
+                        첫 번째 센서 등록하기
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="card shadow-sm mobile-table-view">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 text-info">
+                    <i class="bi bi-list-ul me-2"></i>등록된 센서 목록
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-dark bg-opacity-50">
+                            <tr class="small text-uppercase">
+                                <th class="ps-4 py-3">센서 이름 / 설명</th>
+                                <th>보드 종류</th>
+                                <th>데이터 식별자 (Measurement)</th>
+                                <th>등록 일시</th>
+                                <th class="text-center">상태</th>
+                                <th class="text-end pe-4">작업</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sensor in sensors %}
+                            <tr>
+                                <td class="ps-4">
+                                    <a href="{% url 'great_iot:sensor_detail' sensor.id %}"
+                                        class="fw-bold text-info text-decoration-none h6 mb-0 d-block">
+                                        {{ sensor.name }}
+                                    </a>
+                                    <small class="text-muted">{{ sensor.description|default:"설명 없음"|truncatechars:50 }}</small>
+                                </td>
+                                <td><span class="badge badge-info small">{{ sensor.get_board_type_display }}</span></td>
+                                <td><code class="small">{{ sensor.measurement_name }}</code></td>
+                                <td class="small text-muted">{{ sensor.created_at|date:"Y-m-d H:i" }}</td>
+                                <td class="text-center">
+                                    <span class="badge badge-success rounded-pill px-3 small">Active</span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'great_iot:sensor_detail' sensor.id %}" class="btn btn-outline-info">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <form action="{% url 'great_iot:delete_sensor' sensor.id %}" method="post"
+                                            class="d-inline"
+                                            onsubmit="return confirm('이 센서를 삭제하시겠습니까? 관련 데이터도 모두 삭제됩니다.');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5">
+                                    <div class="text-muted mb-3">등록된 센서가 없습니다.</div>
+                                    <a href="{% url 'great_iot:register_sensor' %}"
+                                        class="btn btn-primary">
+                                        첫 번째 센서 등록하기
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

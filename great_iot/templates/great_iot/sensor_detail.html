@@ -1,0 +1,638 @@
+{% extends "great_iot/base_standalone.html" %}
+{% load static %}
+
+{% block title %}센서 상세 - {{ sensor.name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'great_iot:iot_dashboard' %}" class="text-decoration-none text-info">IoT 대시보드</a></li>
+                <li class="breadcrumb-item active text-muted" aria-current="page">{{ sensor.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-3">
+                <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2 text-info"></i>센서 사양</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label class="text-muted small text-uppercase fw-bold mb-1">센서 이름</label>
+                    <div class="h5 fw-bold text-info">{{ sensor.name }}</div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-muted small text-uppercase fw-bold mb-1">API Key</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control font-monospace bg-dark" value="{{ sensor.api_key }}" readonly id="apiKeyInput">
+                        <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('apiKeyInput').value)">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted smaller">이 키는 보안을 위해 노출되지 않도록 주의하세요.</small>
+                </div>
+                <div class="mb-4">
+                    <label class="text-muted small text-uppercase fw-bold mb-1">하드웨어 보드</label>
+                    <div class="h6 text-light">{{ sensor.get_board_type_display }}</div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-muted small text-uppercase fw-bold mb-1">연결된 센서</label>
+                    <div class="h6 text-light">{{ sensor.get_attached_sensor_display }}</div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-muted small text-uppercase fw-bold mb-1">InfluxDB Measurement</label>
+                    <div><code class="small">{{ sensor.measurement_name }}</code></div>
+                </div>
+                <hr class="my-4 border-secondary opacity-25">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'great_iot:ai_analysis' sensor.id %}" class="btn btn-info">
+                        <i class="bi bi-robot me-2"></i>AI 분석 리포트
+                    </a>
+                </div>
+                
+                <div class="mt-5 pt-3 border-top border-secondary border-opacity-25">
+                    <label class="text-muted small text-uppercase fw-bold text-danger mb-2">데이터 관리</label>
+                    <form action="{% url 'great_iot:purge_sensor_data' sensor.id %}" method="post" onsubmit="return confirm('이 센서의 모든 과거 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                            <i class="bi bi-trash3 me-1"></i>데이터 전체 초기화
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 text-info">
+                    <i class="bi bi-activity me-2"></i>최신 수집 데이터
+                </h5>
+                <span class="badge badge-success rounded-pill px-3 small">
+                    <i class="bi bi-dot me-1"></i>실시간 연결됨
+                </span>
+            </div>
+            <div class="card-body">
+                {% if latest_data %}
+                <div class="row g-3">
+                    {% for field, data_dict in latest_data.items %}
+                    {% with value=data_dict.value label=data_dict.label %}
+                    <div class="col-12">
+                        <div class="p-3 border border-secondary border-opacity-25 rounded bg-dark bg-opacity-25 h-100">
+                            <div class="row align-items-center">
+                                <div class="col-md-3 text-center border-end border-secondary border-opacity-10">
+                                    <label class="text-muted smaller text-uppercase fw-bold mb-1 d-block">{{ label }}</label>
+                                    <div class="h4 fw-bold text-info mb-0 field-value" data-field="{{ field }}" data-value="{{ value }}">
+                                        {% if "time" in field or "left" in field %}
+                                        <span class="formatted-value">처리 중...</span>
+                                        {% else %}
+                                        {{ value|floatformat:2 }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <div style="height: 180px;">
+                                        <canvas id="chart-{{ field }}" class="field-chart" data-field="{{ field }}"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="display-1 text-muted opacity-10 mb-4">
+                        <i class="bi bi-cloud-slash"></i>
+                    </div>
+                    <h5 class="text-muted">최근 수집된 데이터가 없습니다.</h5>
+                    <p class="text-muted small">센서가 지난 24시간 동안 데이터를 전송하지 않았습니다.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer py-2">
+                <small class="text-muted smaller"><i class="bi bi-info-circle me-1"></i>이 데이터는 InfluxDB에서 수신한 마지막 레코드를 나타냅니다.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 border-top border-info border-3">
+            <div class="card-header py-3">
+                <h5 class="card-title mb-0"><i class="bi bi-cpu me-2 text-info"></i>펌웨어 배포 및 구성</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-5">
+                        <h6 class="fw-bold mb-4 text-info"><i class="bi bi-1-circle me-2"></i>네트워크 설정</h6>
+                        <div class="mb-3">
+                            <label class="form-label small">WiFi SSID (네트워크 이름)</label>
+                            <input type="text" id="wifiSsid" class="form-control" placeholder="WiFi 이름을 입력하세요" value="Wokwi-GUEST">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">WiFi Password (비밀번호)</label>
+                            <input type="password" id="wifiPassword" class="form-control" placeholder="비밀번호를 입력하세요">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">서버 엔드포인트 URL</label>
+                            <input type="text" id="serverUrl" class="form-control font-monospace bg-dark small" placeholder="Ingest API URL" value="{{ default_server_url }}">
+                            <small class="text-muted smaller">센서가 데이터를 전송할 목적지 주소입니다.</small>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold">데이터 수집 간격</label>
+                            <select id="loggingInterval" class="form-select form-select-sm">
+                                <option value="1">1초 마다</option>
+                                <option value="5">5초 마다</option>
+                                <option value="10">10초 마다</option>
+                                <option value="30">30초 마다</option>
+                                <option value="60">1분 마다</option>
+                                <option value="300">5분 마다</option>
+                                <option value="600">10분 마다</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold">데이터 전송간격</label>
+                            <select id="transmissionInterval" class="form-select form-select-sm">
+                                <option value="10">10초 마다</option>
+                                <option value="30">30초 마다</option>
+                                <option value="60">1분 마다</option>
+                                <option value="300">5분 마다</option>
+                                <option value="600">10분 마다</option>
+                            </select>
+                        </div>
+                        <div class="alert alert-warning py-2 small">
+                            <i class="bi bi-shield-lock me-2"></i> 이 설정 정보는 펌웨어에 포함되어 컴파일됩니다.
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-7 border-start border-secondary border-opacity-25">
+                        <h6 class="fw-bold mb-4 text-info"><i class="bi bi-2-circle me-2"></i>디바이스 플래싱</h6>
+                        
+                        <div class="mb-4">
+                            <label class="form-label small">배포 방식</label>
+                            <div class="p-3 border border-secondary border-opacity-25 rounded bg-dark bg-opacity-25">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="deployMode" id="modeCompile" checked>
+                                    <label class="form-check-label small fw-bold" for="modeCompile">
+                                        서버 컴파일 & 브라우저 직접 업로드 (Web Serial)
+                                    </label>
+                                    <p class="text-muted smaller mb-0 mt-1">서버에서 펌웨어를 빌드한 후 USB를 통해 디바이스에 직접 기록합니다.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold">보드 컴파일 설정</label>
+                            <div class="p-3 border border-secondary border-opacity-25 rounded bg-dark bg-opacity-25 small">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">FQBN</span>
+                                    <span class="font-monospace">{{ board_config.fqbn|default:'—' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Flash Size</span>
+                                    <span>{{ board_config.flash_size|default:'—' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Flash Mode</span>
+                                    <span>{{ board_config.flash_mode|default:'—' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">CDC On Boot</span>
+                                    <span>{{ board_config.cdc_on_boot|default:'—' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Partition Scheme</span>
+                                    <span>{{ board_config.partition_scheme|default:'—' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button id="uploadFirmwareBtn" class="btn btn-primary btn-lg">
+                                <i class="bi bi-lightning-fill me-2"></i>컴파일 및 펌웨어 쓰기 시작
+                            </button>
+                        </div>
+
+                        <div id="browserWarning" class="alert alert-danger mt-3 d-none py-2 small">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i> Web Serial API를 지원하지 않는 브라우저입니다. Chrome 또는 Edge를 사용하세요.
+                        </div>
+                        
+                        <div class="mt-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="small fw-bold text-muted">배포 프로세스 콘솔</label>
+                                <span id="compileStatus" class="smaller"></span>
+                            </div>
+                            <div id="statusConsole" class="status-console p-3 rounded overflow-y-auto" style="height: 150px;">
+                                <div class="text-secondary smaller">대기 중...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 pt-4 border-top border-secondary border-opacity-25">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0 text-info"><i class="bi bi-terminal me-2"></i>실시간 시리얼 디버그 모니터</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button id="startMonitorBtn" class="btn btn-outline-info">시작</button>
+                            <button id="stopMonitorBtn" class="btn btn-outline-danger" disabled>중지</button>
+                            <button id="clearMonitorBtn" class="btn btn-outline-secondary">지우기</button>
+                        </div>
+                    </div>
+                    <div id="serialMonitorOutput" class="serial-monitor-output p-3 rounded overflow-y-auto" style="height: 200px; white-space: pre-wrap;">
+                        <span class="text-secondary smaller">모니터 오프라인. 펌웨어 쓰기 완료 후 '시작' 버튼을 클릭하여 센서 로그를 확인하세요.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="{% static 'js/arduino_uploader.js' %}"></script>
+<script type="module">
+    import * as esptooljs from "https://unpkg.com/esptool-js@0.5.7/bundle.js";
+    window.esptooljs = esptooljs;
+</script>
+<script>
+    const statusConsole = document.getElementById('statusConsole');
+    const uploadBtn = document.getElementById('uploadFirmwareBtn');
+    const browserWarning = document.getElementById('browserWarning');
+    const wifiSsidInput = document.getElementById('wifiSsid');
+    const wifiPasswordInput = document.getElementById('wifiPassword');
+    const serverUrlInput = document.getElementById('serverUrl');
+    const loggingIntervalSelect = document.getElementById('loggingInterval');
+    const transmissionIntervalSelect = document.getElementById('transmissionInterval');
+
+    function logToConsole(msg, type = 'info') {
+        const div = document.createElement('div');
+        if (type === 'error') div.className = 'text-danger';
+        else if (type === 'success') div.className = 'text-info';
+        else if (type === 'debug') div.className = 'text-secondary smaller';
+        else div.className = 'text-success';
+
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        statusConsole.appendChild(div);
+        statusConsole.scrollTop = statusConsole.scrollHeight;
+    }
+
+    if (!('serial' in navigator)) {
+        uploadBtn.disabled = true;
+        browserWarning.classList.remove('d-none');
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+        const ssid = wifiSsidInput.value.trim();
+        const pwd = wifiPasswordInput.value.trim();
+        const serverUrl = serverUrlInput.value.trim();
+        const loggingInterval = loggingIntervalSelect.value;
+        const transmissionInterval = transmissionIntervalSelect.value;
+
+        if (!ssid) {
+            alert("WiFi SSID를 입력해 주세요.");
+            return;
+        }
+
+        statusConsole.innerHTML = '';
+
+        const uploader = new ArduinoUploader(logToConsole);
+
+        logToConsole("디바이스 연결 초기화 중...");
+
+        const connected = await uploader.connect(115200);
+        if (!connected) return;
+
+        try {
+            logToConsole("펌웨어 소스 코드를 불러오는 중...");
+            const previewRes = await fetch("{% url 'great_iot:generate_firmware' sensor.id %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    ssid: ssid,
+                    password: pwd,
+                    server_url: serverUrl,
+                    logging_interval: loggingInterval,
+                    transmission_interval: transmissionInterval,
+                    preview_only: true
+                })
+            });
+
+            if (previewRes.ok) {
+                const previewData = await previewRes.json();
+                if (previewData.success && previewData.source_code) {
+                    logToConsole("--- 컴파일할 소스 코드 ---", 'debug');
+                    previewData.source_code.split('\n').forEach(line => {
+                        if (line.trim()) logToConsole(line, 'debug');
+                    });
+                    logToConsole("--- 소스 코드 끝 ---", 'debug');
+                }
+            }
+
+            logToConsole("서버에 펌웨어 컴파일 요청 중 (수 분이 소요될 수 있습니다)...");
+
+            const compileRes = await fetch("{% url 'great_iot:generate_firmware' sensor.id %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    ssid: ssid,
+                    password: pwd,
+                    server_url: serverUrl,
+                    logging_interval: loggingInterval,
+                    transmission_interval: transmissionInterval
+                })
+            });
+
+            if (!compileRes.ok) {
+                const errorText = await compileRes.text();
+                logToConsole(`서버 오류 (${compileRes.status}): ` + errorText.substring(0, 200) + "...", 'error');
+                return;
+            }
+
+            const compileData = await compileRes.json();
+
+            if (!compileData.success) {
+                logToConsole("컴파일 실패:", 'error');
+                logToConsole(compileData.message, 'error');
+                if (compileData.logs) {
+                    logToConsole("--- 상세 오류 로그 ---", 'debug');
+                    compileData.logs.split('\n').forEach(line => {
+                        if (line.trim()) logToConsole(line, 'debug');
+                    });
+                }
+                return;
+            }
+
+            logToConsole("컴파일 완료!", 'success');
+            
+            if (compileData.compile_info) {
+                const info = compileData.compile_info;
+                logToConsole(`대상 보드: ${info.fqbn}`, 'info');
+                if (info.memory) {
+                    const mem = info.memory;
+                    if (mem.program_bytes) {
+                        logToConsole(`[메모리] 스케치: ${mem.program_bytes.toLocaleString()} 바이트 (최대 ${mem.program_max.toLocaleString()} 바이트, ${mem.program_percent} 사용)`, 'info');
+                    }
+                    if (mem.dynamic_bytes) {
+                        logToConsole(`[메모리] 전역 변수: ${mem.dynamic_bytes.toLocaleString()} 바이트 (최대 ${mem.dynamic_max.toLocaleString()} 바이트, ${mem.dynamic_percent} 사용)`, 'info');
+                    }
+                }
+            }
+
+            if (compileData.logs) {
+                logToConsole("--- 컴파일 상세 로그 ---", 'debug');
+                compileData.logs.split('\n').forEach(line => {
+                    if (line.trim()) logToConsole(line, 'debug');
+                });
+            }
+
+            logToConsole("디바이스에 펌웨어 쓰기를 시작합니다.", 'success');
+
+            const boardType = compileData.board_type || 'esp32';
+            if (boardType === 'avr') {
+                if (compileData.hex_content) {
+                    await uploader.upload(compileData.hex_content);
+                } else {
+                    logToConsole("AVR hex 데이터가 없습니다.", 'error');
+                }
+            } else if (boardType === 'esp32') {
+                if (compileData.flash_files && compileData.flash_files.length > 0) {
+                    await uploader.uploadEsp32Multi(compileData.flash_files, 460800, compileData.flash_config);
+                } else if (compileData.bin_content) {
+                    await uploader.uploadEsp32(compileData.bin_content, compileData.flash_address || 0x10000, 460800, compileData.flash_config);
+                } else {
+                    logToConsole("ESP32 바이너리 데이터가 없습니다.", 'error');
+                }
+            } else if (boardType === 'esp8266') {
+                if (compileData.bin_content) {
+                    await uploader.uploadEsp8266(compileData.bin_content, compileData.flash_address || 0x0, 460800);
+                } else {
+                    logToConsole("ESP8266 바이너리 데이터가 없습니다.", 'error');
+                }
+            } else {
+                logToConsole(`알 수 없는 보드 타입: ${boardType}`, 'error');
+            }
+
+        } catch (err) {
+            logToConsole("시스템 오류: " + err.message, 'error');
+            console.error(err);
+        } finally {
+            await uploader.disconnect();
+        }
+    });
+
+    const startMonitorBtn = document.getElementById('startMonitorBtn');
+    const stopMonitorBtn = document.getElementById('stopMonitorBtn');
+    const clearMonitorBtn = document.getElementById('clearMonitorBtn');
+    const serialOutput = document.getElementById('serialMonitorOutput');
+
+    let monitor = null;
+
+    startMonitorBtn.addEventListener('click', async () => {
+        monitor = new SerialMonitor((text, type) => {
+            if (type === 'data') {
+                const span = document.createElement('span');
+                span.textContent = text;
+                serialOutput.appendChild(span);
+            } else {
+                const div = document.createElement('div');
+                if (type === 'error') div.className = 'text-danger';
+                else if (type === 'success') div.className = 'text-info';
+                else div.className = 'text-success';
+                div.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+                serialOutput.appendChild(div);
+            }
+            serialOutput.scrollTop = serialOutput.scrollHeight;
+        });
+        const connected = await monitor.connect(115200);
+        if (connected) {
+            startMonitorBtn.disabled = true;
+            stopMonitorBtn.disabled = false;
+        }
+    });
+
+    stopMonitorBtn.addEventListener('click', async () => {
+        if (monitor) {
+            await monitor.disconnect();
+            monitor = null;
+        }
+        startMonitorBtn.disabled = false;
+        stopMonitorBtn.disabled = true;
+    });
+
+    clearMonitorBtn.addEventListener('click', () => {
+        serialOutput.innerHTML = '<span class="text-secondary smaller">출력 로그가 초기화되었습니다.</span>';
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const fieldValues = document.querySelectorAll('.field-value');
+
+        const fieldLabels = JSON.parse('{{ field_labels_json|escapejs }}');
+
+        fieldValues.forEach(container => {
+            const field = container.getAttribute('data-field');
+            const value = parseFloat(container.getAttribute('data-value'));
+            const displaySpan = container.querySelector('.formatted-value');
+
+            if (displaySpan) {
+                if (field.includes('elapsed') || field.includes('left')) {
+                    displaySpan.textContent = formatDuration(value);
+                } else if (field.includes('time')) {
+                    displaySpan.textContent = formatDateTime(value);
+                }
+            }
+
+            const label = container.previousElementSibling;
+            if (label && label.tagName === 'LABEL') {
+                label.textContent = fieldLabels[field] || field.replace(/_/g, ' ').toUpperCase();
+            }
+        });
+
+        function formatDateTime(epoch) {
+            if (!epoch || epoch < 1000000000) return "---";
+            const date = new Date(epoch * 1000);
+            const pad = (num) => String(num).padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        }
+
+        function formatDuration(seconds) {
+            if (isNaN(seconds)) return "---";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            const ms = Math.floor((seconds % 1) * 1000);
+            const parts = [];
+            if (h > 0) parts.push(`${h}시간`);
+            if (m > 0 || h > 0) parts.push(`${m}분`);
+            parts.push(`${s}초`);
+            return parts.join(' ') + (ms > 0 ? ` ${ms}ms` : '');
+        }
+
+        const charts = {};
+        const fieldCharts = document.querySelectorAll('.field-chart');
+        
+        async function initCharts() {
+            if (fieldCharts.length === 0) return;
+            
+            try {
+                const response = await fetch("{% url 'great_iot:iot_data' %}?measurement={{ sensor.measurement_name }}&sensor_id={{ sensor.id }}");
+                const data = await response.json();
+                
+                if (data.success && data.labels) {
+                    const labels = data.labels.map(t => new Date(t));
+                    
+                    fieldCharts.forEach(canvas => {
+                        const field = canvas.getAttribute('data-field');
+                        const values = data[`${field}_values`];
+                        
+                        if (values && values.length > 0) {
+                            const ctx = canvas.getContext('2d');
+                            charts[field] = new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: '{{ sensor.get_attached_sensor_display }} - ' + field,
+                                        data: values,
+                                        borderColor: '#0dcaf0',
+                                        backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                                        borderWidth: 2,
+                                        pointRadius: 0,
+                                        tension: 0.3,
+                                        fill: true
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            mode: 'index',
+                                            intersect: false,
+                                            callbacks: {
+                                                label: function(context) {
+                                                    let label = context.dataset.label || '';
+                                                    if (label) label += ': ';
+                                                    if (context.parsed.y !== null) {
+                                                        label += context.parsed.y.toFixed(2);
+                                                    }
+                                                    return label;
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        x: {
+                                            type: 'time',
+                                            time: {
+                                                unit: 'minute',
+                                                displayFormats: {
+                                                    minute: 'HH:mm'
+                                                }
+                                            },
+                                            grid: {
+                                                display: false,
+                                                drawBorder: false
+                                            },
+                                            ticks: {
+                                                display: true,
+                                                autoSkip: true,
+                                                maxTicksLimit: 5,
+                                                color: '#6c757d',
+                                                font: { size: 10 }
+                                            }
+                                        },
+                                        y: {
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.05)',
+                                                drawBorder: false
+                                            },
+                                            ticks: {
+                                                display: true,
+                                                color: '#6c757d',
+                                                font: { size: 10 },
+                                                maxTicksLimit: 4
+                                            }
+                                        }
+                                    },
+                                    interaction: {
+                                        intersect: false,
+                                        mode: 'nearest',
+                                    }
+                                }
+                            });
+                        } else {
+                            const ctx = canvas.getContext('2d');
+                            ctx.font = '12px Arial';
+                            ctx.fillStyle = '#6c757d';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('최근 1시간 데이터 없음', canvas.width/2, canvas.height/2);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching chart data:", err);
+            }
+        }
+        
+        initCharts();
+    });
+</script>
+{% endblock %}

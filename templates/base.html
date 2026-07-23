@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DK SW IoT Dashboard{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body.mobile-device {
+            overflow-x: hidden;
+        }
+        body.mobile-device .navbar-brand,
+        body.mobile-device .nav-link {
+            font-size: 0.9rem;
+        }
+        body.mobile-device main.container-fluid {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+        body.mobile-device .card,
+        body.mobile-device .table-responsive {
+            margin-bottom: 8px;
+        }
+        body.mobile-device .table th,
+        body.mobile-device .table td {
+            padding: 0.4rem 0.3rem;
+            font-size: 0.85rem;
+        }
+        body.mobile-device .pagination .page-link {
+            padding: 0.25rem 0.4rem;
+            font-size: 0.85rem;
+        }
+        body.mobile-device .btn {
+            margin-bottom: 4px;
+        }
+        @media (max-width: 768px) and (orientation: portrait) {
+            body.mobile-device .table td:nth-child(4),
+            body.mobile-device .table th:nth-child(4) {
+                display: none;
+            }
+            body.mobile-device .btn-group,
+            body.mobile-device .d-flex {
+                flex-wrap: wrap;
+                justify-content: space-between;
+            }
+            body.mobile-device .navbar-collapse {
+                max-height: 60vh;
+                overflow-y: auto;
+            }
+        }
+        @media (max-width: 1024px) and (orientation: landscape) {
+            body.mobile-device main.container-fluid {
+                padding-left: 24px;
+                padding-right: 24px;
+            }
+            body.mobile-device .card,
+            body.mobile-device .table-responsive {
+                margin-bottom: 12px;
+            }
+            body.mobile-device .table td:nth-child(4),
+            body.mobile-device .table th:nth-child(4) {
+                display: table-cell;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <i class="bi bi-globe2 me-2"></i>DK SW IoT Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'home' %}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'about' %}">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'contact' %}">Contact</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/iot/">IoT Dashboard</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle me-1"></i> {{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                            <li>
+                                <form method="post" action="{% url 'logout' %}?next_page=/accounts/login/?next={{ request.path }}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item">Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'register' %}?next={{ request.path }}">Register</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}?next={{ request.path }}">Login</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4 px-lg-5 flex-grow-1">
+        {% if messages %}
+        <div class="container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <div class="container text-center">
+            <p class="mb-1">&copy; {% now "Y" %} DK SW IoT Dashboard. All rights reserved.</p>
+            <small>Current Time: {% now "l, F d, Y H:i:s T" %}</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        (function() {
+            function isMobileDevice() {
+                return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            }
+            if (isMobileDevice()) {
+                document.body.classList.add('mobile-device');
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => {
+                        if (window.innerWidth > 768 && !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                            document.body.classList.remove('mobile-device');
+                        } else {
+                            document.body.classList.add('mobile-device');
+                        }
+                    }, 250);
+                });
+            }
+        })();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

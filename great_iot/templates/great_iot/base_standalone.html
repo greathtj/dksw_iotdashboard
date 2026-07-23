@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IoT Engineering Hub{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    {% load static %}
+
+    <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+        .navbar {
+            background-color: #161b22 !important;
+            border-bottom: 1px solid #30363d;
+        }
+        .card {
+            background-color: #161b22;
+            border-color: #30363d;
+            border-radius: 8px;
+        }
+        .card-header {
+            background-color: #21262d !important;
+            border-bottom: 1px solid #30363d;
+            font-weight: 600;
+        }
+        .form-control, .form-select {
+            background-color: #0d1117;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #0d1117;
+            border-color: #58a6ff;
+            color: #c9d1d9;
+            box-shadow: 0 0 0 0.25rem rgba(88, 166, 255, 0.25);
+        }
+        .btn-primary {
+            background-color: #238636;
+            border-color: #2ea043;
+        }
+        .btn-primary:hover {
+            background-color: #2ea043;
+            border-color: #3fb950;
+        }
+        .btn-outline-primary {
+            color: #58a6ff;
+            border-color: #58a6ff;
+        }
+        .btn-outline-primary:hover {
+            background-color: #58a6ff;
+            border-color: #58a6ff;
+        }
+        .nav-link {
+            color: #8b949e;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #f0f6fc;
+        }
+        .status-console, .serial-monitor-output {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 13px;
+            background-color: #010409 !important;
+            border: 1px solid #30363d;
+        }
+        code {
+            color: #ff7b72;
+            background-color: rgba(110, 118, 129, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+        }
+        .badge-success { background-color: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.3); }
+        .badge-info { background-color: rgba(56, 139, 253, 0.2); color: #58a6ff; border: 1px solid rgba(88, 166, 255, 0.3); }
+        .badge-warning { background-color: rgba(187, 128, 9, 0.2); color: #d29922; border: 1px solid rgba(210, 153, 34, 0.3); }
+
+        body.mobile-device {
+            overflow-x: hidden;
+        }
+
+        body.mobile-device .navbar-brand small {
+            display: none;
+        }
+
+        body.mobile-device main.container-fluid {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+
+        body.mobile-device h2.fw-bold {
+            font-size: 1.5rem !important;
+        }
+
+        body.mobile-device .card-header,
+        body.mobile-device .card-title {
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) and (orientation: portrait) {
+            body.mobile-device main.container-fluid {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
+            body.mobile-device .card-body p {
+                font-size: 0.85rem;
+            }
+
+            body.mobile-device .btn-group-sm .btn {
+                padding: 0.25rem 0.4rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{% url 'great_iot:iot_dashboard' %}">
+                <i class="bi bi-broadcast me-2 text-info"></i>
+                IoT Engineering Hub <small class="fw-normal text-muted ms-2">Standalone</small>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'iot_dashboard' %}active{% endif %}" href="{% url 'great_iot:iot_dashboard' %}">
+                            <i class="bi bi-speedometer2 me-1"></i> 대시보드
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'register_sensor' %}active{% endif %}" href="{% url 'great_iot:register_sensor' %}">
+                            <i class="bi bi-plus-circle me-1"></i> 센서등록
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-muted me-3 small">
+                        <i class="bi bi-person-circle me-1"></i> {{ user.username }}
+                    </span>
+                    <form method="post" action="{% url 'admin:logout' %}?next=/accounts/login/?next={{ request.path }}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-box-arrow-right me-1"></i> 로그아웃
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid px-4 py-2">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        (function() {
+            function isMobileDevice() {
+                return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            }
+
+            if (isMobileDevice()) {
+                document.body.classList.add('mobile-device');
+                
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => {
+                        if (window.innerWidth > 768 && !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                            document.body.classList.remove('mobile-device');
+                        } else {
+                            document.body.classList.add('mobile-device');
+                        }
+                    }, 250);
+                });
+            }
+        })();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

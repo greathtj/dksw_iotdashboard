@@ -10,10 +10,17 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Path to the user's arduino-cli data directory
+if os.name == 'nt':
+    ARDUINO_DATA_DIR = str(Path.home() / 'AppData' / 'Local' / 'Arduino15')
+else:
+    ARDUINO_DATA_DIR = '/home/greathtj/.arduino15'
 
 
 # Quick-start development settings - unsuitable for production
@@ -37,6 +44,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'great_iot',
+    'pages.apps.PagesConfig',
+    'development.apps.DevelopmentConfig',
 ]
 
 MIDDLEWARE = [
@@ -54,7 +64,7 @@ ROOT_URLCONF = 'dksw_iotdashboard.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -115,3 +125,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+INFLUXDB_SETTINGS = {
+    'url': 'http://45.115.155.228:8086',
+    'token': '895dK-EWv5tWCm_-IxYSbsdmCyFV0mSCUoCgX-LfMU5avtdrlgrvn4EH7H53QBrjWYO_FnmN5tO9tB2sLIuyTA==',
+    'org': 'myorg',
+    'bucket': 'mybucket',
+}

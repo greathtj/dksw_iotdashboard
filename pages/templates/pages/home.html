@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}DK SW IoT Dashboard - 서비스 포털{% endblock %}
+
+{% block content %}
+<style>
+  .service-icon {
+    font-size: 1.8rem;
+  }
+  .category-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .category-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12) !important;
+  }
+  .app-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-left: 3px solid transparent;
+  }
+  .app-card:hover {
+    transform: translateX(3px);
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1) !important;
+    border-left-color: var(--bs-primary);
+  }
+  .app-card .card-body {
+    padding: 1rem 1.25rem;
+  }
+  .section-title {
+    position: relative;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .section-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 48px;
+    height: 3px;
+    background: var(--bs-primary);
+    border-radius: 2px;
+  }
+</style>
+
+<div class="p-4 p-md-5 mb-4 bg-white rounded-3 shadow-sm">
+  <div class="container-fluid py-4">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <i class="bi bi-grid-3x3-gaptop fs-1 text-primary"></i>
+      <h1 class="display-5 fw-bold text-dark mb-0">DK SW IoT Dashboard</h1>
+    </div>
+    <p class="col-lg-9 fs-5 text-secondary">
+      IoT 센서 관리 및 데이터 시각화 플랫폼 &mdash;
+      <strong class="text-dark">Django</strong> 기반 통합 시스템입니다.
+    </p>
+
+    {% if not user.is_authenticated %}
+    <div class="d-flex align-items-center flex-wrap gap-2 mt-3">
+      <a href="{% url 'register' %}" class="btn btn-primary px-4">가입하기</a>
+      <a href="{% url 'login' %}" class="btn btn-outline-primary px-4">로그인</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ============ IoT & Hardware ============ -->
+<h4 class="section-title fw-semibold text-dark">
+  <i class="bi bi-cpu me-2 text-primary"></i>IoT &amp; Hardware
+</h4>
+<div class="row g-3 mb-5">
+  <div class="col-md-6 col-lg-4">
+    <div class="card app-card h-100 border shadow-sm">
+      <div class="card-body d-flex align-items-start gap-3">
+        <i class="bi bi-wifi service-icon text-primary flex-shrink-0"></i>
+        <div class="min-w-0">
+          <h6 class="fw-semibold mb-1"><a href="/iot/" class="text-decoration-none stretched-link">IoT Dashboard</a></h6>
+          <p class="text-secondary small mb-0">센서 등록, 데이터 수집 및 모니터링</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Server Time -->
+<div class="row align-items-md-stretch">
+  <div class="col-md-6">
+    <div class="h-100 p-4 text-white bg-dark rounded-3 d-flex flex-column justify-content-center">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <i class="bi bi-clock-history fs-4"></i>
+        <h5 class="mb-0">서버 시간</h5>
+      </div>
+      <p class="mb-0 fs-5 fw-semibold">{{ current_time|date:"Y년 n월 j일 l, H:i" }}</p>
+      <small class="text-white-50">Asia/Seoul</small>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="h-100 p-4 bg-white border rounded-3 d-flex flex-column justify-content-center">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <i class="bi bi-info-circle fs-4 text-primary"></i>
+        <h5 class="text-dark mb-0">둘러보기</h5>
+      </div>
+      <p class="text-secondary mb-2">IoT Dashboard 카드를 클릭하여 센서 관리 페이지로 이동하세요.</p>
+      <p class="text-secondary small mb-0">상단 내비게이션 메뉴를 통해서도 페이지에 접근할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+{% endblock content %}
